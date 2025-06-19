@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import GameWheel from "../../../components/wheel/GameWheel";
-import BettingPanel from "../../../components/wheel/BettingPanel";
-import GameHistory from "../../../components/wheel/GameHistory";
+import GameWheel from "./components/GameWheel";
+import BettingPanel from "./components/BettingPanel";
+import GameHistory from "./components/GameHistory";
 import { calculateResult } from "../../../lib/gameLogic";
 import Image from "next/image";
-import coin from "../../../../public/coin.png";
 
 
 export default function Home() {
@@ -151,7 +150,7 @@ export default function Home() {
               <div className="bg-[#1e0936] rounded-sm p-2 py-4 px-5 flex items-center gap-2 mt-2 md:mt-0">
                 <span className="text-white text-lg">{balance.toFixed(10)}</span>
                 <Image
-                  src={coin}
+                  src={"/images/coin.png"}
                   width={20}
                   height={20}
                   alt="coin"
