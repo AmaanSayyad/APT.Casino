@@ -5,10 +5,6 @@ const nextConfig = {
   images: {
     domains: ['images.unsplash.com'],
   },
-  // Increase chunk loading timeout to 60 seconds
-  experimental: {
-    pageLoadTimeout: 60, // 60 seconds
-  },
   // Performance optimizations
   poweredByHeader: false,
   reactStrictMode: false, // Disable strict mode to prevent double-renders and potential issues
@@ -60,7 +56,8 @@ const nextConfig = {
           lib: {
             test: /[\\/]node_modules[\\/]/,
             name(module) {
-              const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
+              const match = module.context && module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/);
+              const packageName = match ? match[1] : '';
               return `npm.${packageName.replace('@', '')}`;
             },
             priority: 10,
