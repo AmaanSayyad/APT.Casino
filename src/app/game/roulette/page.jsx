@@ -30,9 +30,9 @@ import { useToken } from "@/hooks/useToken";
 import BettingHistory from '@/components/BettingHistory';
 import useWalletStatus from '@/hooks/useWalletStatus';
 import { FaVolumeMute, FaVolumeUp } from "react-icons/fa";
-import { TreasuryUI } from '@/components/TreasuryUI';
-import { TreasuryTest } from '@/components/TreasuryTest';
-import { TreasuryManager } from '@/components/TreasuryManager';
+import { TreasuryUI } from '../../../components/TreasuryUI';
+import { TreasuryTest } from '../../../components/TreasuryTest';
+import { TreasuryManager } from '../../../components/TreasuryManager';
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 
 
@@ -667,9 +667,24 @@ export default function GameRoulette() {
   const [isDev, setIsDev] = useState(false);
   const [error, setError] = useState(null);
   const [pendingBets, setPendingBets] = useState([]);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const { address, isConnected } = useWalletStatus();
+
+  const { data: hash, isPending, writeContract: wagmiWriteContract } = useWriteContract();
+
+  const checkTransactionStatus = async (hash) => {
+    try {
+      const receipt = await ViemClient.publicPharosSepoliaClient.waitForTransactionReceipt({ hash });
+      return receipt.status; // 'success' or 'reverted'
+    } catch (error) {
+      console.error("Error checking transaction status:", error);
+      return 'failed';
+    }
+  };
+
+  
 
   // Get wallet status and balance
-  const { address, isConnected } = useWalletStatus();
   const { balance } = useToken(address);
 
   // Add wagmi hooks for contract interactions
@@ -824,9 +839,9 @@ export default function GameRoulette() {
       const winningsListener = ViemClient.publicPharosSepoliaClient.watchContractEvent({
       address: rouletteContractAddress,
       abi: rouletteABI,
-      eventName: "RandomNumberGenerated",
+      eventName: "RandomGenerated",
       onLogs: (logs) => {
-          console.log('RandomNumberGenerated event received:', logs);
+          console.log('RandomGenerated event received:', logs);
           try {
             // Safely parse the random number
             const randomNumberRaw = logs[0]?.args?.randomNumber;
@@ -1012,6 +1027,7 @@ export default function GameRoulette() {
   }, [events, playSound, menuClickRef]);
 
   // Update the placeBet function to accumulate bets
+  // Update the placeBet function to accumulate bets
   const placeBet = useCallback((e, type, ind = 0, newVal = bet, revert = false) => {
     if (e) {
     e.preventDefault();
@@ -1044,6 +1060,7 @@ export default function GameRoulette() {
           if (!revert && newVal > 0) {
             betType = 1; // COLOR
             betValue = 0; // Red
+            numbers = []; // Simple bets have empty numbers array
             setPendingBets(prev => [...prev, { betType, betValue, amount: newVal, numbers, id: Date.now() }]);
           }
         }
@@ -1060,6 +1077,7 @@ export default function GameRoulette() {
           if (!revert && newVal > 0) {
             betType = 1; // COLOR
             betValue = 1; // Black
+            numbers = []; // Simple bets have empty numbers array
             setPendingBets(prev => [...prev, { betType, betValue, amount: newVal, numbers, id: Date.now() }]);
           }
         }
@@ -1076,6 +1094,7 @@ export default function GameRoulette() {
           if (!revert && newVal > 0) {
             betType = 2; // ODDEVEN
             betValue = 1; // Odd
+            numbers = []; // Simple bets have empty numbers array
             setPendingBets(prev => [...prev, { betType, betValue, amount: newVal, numbers, id: Date.now() }]);
           }
         }
@@ -1092,6 +1111,7 @@ export default function GameRoulette() {
           if (!revert && newVal > 0) {
             betType = 2; // ODDEVEN
             betValue = 0; // Even
+            numbers = []; // Simple bets have empty numbers array
             setPendingBets(prev => [...prev, { betType, betValue, amount: newVal, numbers, id: Date.now() }]);
           }
         }
@@ -1108,6 +1128,7 @@ export default function GameRoulette() {
           if (!revert && newVal > 0) {
             betType = 3; // HIGHLOW
             betValue = 1; // High (19-36)
+            numbers = []; // Simple bets have empty numbers array
             setPendingBets(prev => [...prev, { betType, betValue, amount: newVal, numbers, id: Date.now() }]);
           }
         }
@@ -1124,6 +1145,7 @@ export default function GameRoulette() {
           if (!revert && newVal > 0) {
             betType = 3; // HIGHLOW
             betValue = 0; // Low (1-18)
+            numbers = []; // Simple bets have empty numbers array
             setPendingBets(prev => [...prev, { betType, betValue, amount: newVal, numbers, id: Date.now() }]);
           }
         }
@@ -1140,6 +1162,7 @@ export default function GameRoulette() {
           if (!revert && newVal > 0) {
             betType = 4; // DOZEN
             betValue = ind; // 0, 1, or 2 for first, second, third dozen
+            numbers = []; // Simple bets have empty numbers array
             setPendingBets(prev => [...prev, { betType, betValue, amount: newVal, numbers, id: Date.now() }]);
           }
         }
@@ -1156,6 +1179,7 @@ export default function GameRoulette() {
           if (!revert && newVal > 0) {
             betType = 5; // COLUMN
             betValue = ind; // 0, 1, or 2 for first, second, third column
+            numbers = []; // Simple bets have empty numbers array
             setPendingBets(prev => [...prev, { betType, betValue, amount: newVal, numbers, id: Date.now() }]);
           }
         }
@@ -1188,17 +1212,17 @@ export default function GameRoulette() {
                   break;
                 case 1: // Split left
                   betType = 6; // SPLIT
-                  betValue = number;
+                  betValue = 0;
                   numbers = [number, number - 1];
                   break;
                 case 2: // Split bottom
                   betType = 6; // SPLIT
-                  betValue = number;
+                  betValue = 0;
                   numbers = [number, number + 3];
                   break;
                 case 3: // Corner
                   betType = 8; // CORNER
-                  betValue = number;
+                  betValue = 0;
                   numbers = [number, number + 1, number + 3, number + 4];
                   break;
               }
@@ -1209,7 +1233,6 @@ export default function GameRoulette() {
         break;
     }
   }, [bet, events, red, black, odd, even, over, under, dozens, columns, inside, playSound, chipPlaceRef]);
-
   // reset all the bets
   const reset = useCallback((e) => {
     if (e) e.preventDefault();
@@ -1245,35 +1268,37 @@ export default function GameRoulette() {
 
   const approveTokens = async (amount) => {
     try {
-      console.log('Starting token approval...');
-      console.log('Amount to approve:', amount);
-      console.log('Token contract address:', tokenContractAddress);
-      console.log('Roulette contract address:', rouletteContractAddress);
-      
-      // Use a fixed spending cap instead of reading balance to avoid HTTP issues
-      const spendingCap = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-      console.log('Using maximum spending cap:', spendingCap.toString());
-      
-      console.log('Sending approval transaction...');
-      const hash = await writeContractAsync({
+      setNotification({ open: true, message: 'Checking allowance...', severity: 'info' });
+
+      // 1. Check current allowance
+      const currentAllowance = await ViemClient.publicPharosSepoliaClient.readContract({
         address: tokenContractAddress,
         abi: tokenABI,
-        functionName: 'approve',
-        args: [rouletteContractAddress, spendingCap.toString()], // Convert BigInt to string
+        functionName: 'allowance',
+        args: [address, rouletteContractAddress],
       });
-      
-      console.log('Approval transaction hash:', hash);
-      console.log('Approval transaction submitted successfully');
-      
-      console.log("Token approval successful with spending cap:", spendingCap.toString());
+
+      // 2. Compare with the required amount
+      if (currentAllowance < amount) {
+        // 3. If allowance is insufficient, request approval
+        setNotification({ open: true, message: 'Requesting approval to place bet...', severity: 'info' });
+        const hash = await writeContractAsync({
+          address: tokenContractAddress,
+          abi: tokenABI,
+          functionName: 'approve',
+          args: [rouletteContractAddress, amount],
+        });
+        await ViemClient.publicPharosSepoliaClient.waitForTransactionReceipt({ hash });
+        setNotification({ open: true, message: 'Approval successful!', severity: 'success' });
+      } else {
+        // 4. If allowance is sufficient, do nothing.
+        setNotification({ open: true, message: 'Allowance confirmed.', severity: 'info' });
+      }
+      return true;
     } catch (error) {
-      console.error("Error approving tokens:", error);
-      console.error("Approval error details:", {
-        message: error.message,
-        code: error.code,
-        stack: error.stack
-      });
-      throw error;
+      console.error("Error in approveTokens function:", error);
+      setNotification({ open: true, message: `Approval failed: ${error.shortMessage || error.message}`, severity: 'error' });
+      return false;
     }
   };
 
@@ -1715,26 +1740,26 @@ export default function GameRoulette() {
     dispatchEvents({ type: "reset" });
   }, [playSound, menuClickRef]);
 
-  // Wrap treasury operations in useEffect
-  useEffect(() => {
-    const handleTreasuryOperations = async () => {
-      try {
-        await treasury.sendTokensToUser(address, total);
-      } catch (error) {
-        console.error("Failed to send tokens:", error.message);
-      }
+  //  Wrap treasury operations in useEffect
+  // useEffect(() => {
+  //   const handleTreasuryOperations = async () => {
+  //     try {
+  //       await treasury.sendTokensToUser(address, total);
+  //     } catch (error) {
+  //       console.error("Failed to send tokens:", error.message);
+  //     }
 
-      try {
-        await treasury.handleGameResult(address, total, rollResult, winnings > 0);
-      } catch (error) {
-        console.error("Failed to handle game result:", error.message);
-      }
-    };
+  //     try {
+  //       await treasury.handleGameResult(address, total, rollResult, winnings > 0);
+  //     } catch (error) {
+  //       console.error("Failed to handle game result:", error.message);
+  //     }
+  //   };
 
-    if (address && total > 0) {
-      handleTreasuryOperations();
-    }
-  }, [address, total, rollResult, winnings]);
+  //   if (address && total > 0) {
+  //     handleTreasuryOperations();
+  //   }
+  // }, [address, total, rollResult, winnings]);
 
   const { data: playerBalance, isError, isLoading: isBalanceLoading } = useReadContract({
     address: tokenContractAddress,
@@ -1775,7 +1800,7 @@ export default function GameRoulette() {
         {/* Audio elements */}
         <audio ref={spinSoundRef} src="/sounds/ball-spin.mp3" preload="auto" />
         <audio ref={winSoundRef} src="/sounds/win-chips.mp3" preload="auto" />
-        <audio ref={chipSelectRef} src="/sounds/chip-select.mp3" preload="auto" />
+     //   <audio ref={chipSelectRef} src="/sounds/chip-select.mp3" preload="auto" />
         <audio ref={chipPlaceRef} src="/sounds/chip-put.mp3" preload="auto" />
         <audio ref={menuClickRef} src="/sounds/menu.mp3" preload="auto" />
         <audio ref={backgroundMusicRef} src="/sounds/background-music.mp3" preload="auto" loop />
